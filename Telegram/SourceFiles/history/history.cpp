@@ -1679,6 +1679,15 @@ void History::newItemAdded(not_null<HistoryItem*> item, NewAddType type) {
 	if (type == NewAddType::StreamedDraftFinish) {
 		applyStreamedDraftFinish(item);
 	}
+	// Index and UI observers can mark this message read synchronously.
+	const auto wasIncomingUnread = !item->out() && item->unread(this);
+	if (wasIncomingUnread) {
+		if (unreadCountKnown()) {
+			setUnreadCount(unreadCount() + 1);
+		} else if (!isForum()) {
+			owner().histories().requestDialogEntry(this);
+		}
+	}
 	item->indexAsNewItem();
 	item->addToMessagesIndex();
 	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
@@ -1717,16 +1726,8 @@ void History::newItemAdded(not_null<HistoryItem*> item, NewAddType type) {
 		if (item->changesWallPaper()) {
 			peer->updateFullForced();
 		}
-	} else {
-		if (item->unread(this)) {
-			if (unreadCountKnown()) {
-				setUnreadCount(unreadCount() + 1);
-			} else if (!isForum()) {
-				owner().histories().requestDialogEntry(this);
-			}
-		} else {
-			inboxRead(item);
-		}
+	} else if (!wasIncomingUnread) {
+		inboxRead(item);
 	}
 	if (type != NewAddType::StreamedDraftFinish) {
 		// In StreamedDraftFinish setRealId() already incremented this.
