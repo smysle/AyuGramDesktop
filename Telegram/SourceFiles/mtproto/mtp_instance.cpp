@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "base/unixtime.h"
-#include "base/call_delayed.h"
 #include "base/timer.h"
 #include "base/network_reachability.h"
 #include "test/test_rpc_retry.h"
@@ -299,6 +298,9 @@ private:
 
 	base::Timer _checkDelayedTimer;
 
+	// Check the latest expiry without keeping timers from older configs.
+	base::Timer _configExpiresTimer;
+
 	Core::SettingsProxy &_proxySettings;
 
 	rpl::lifetime _lifetime;
@@ -390,6 +392,7 @@ void Instance::Private::start() {
 	}
 
 	_checkDelayedTimer.setCallback([this] { checkDelayedRequests(); });
+	_configExpiresTimer.setCallback([this] { requestConfigIfExpired(); });
 
 	Assert(!hasMainDcId() == isKeysDestroyer());
 	requestConfig();
@@ -588,10 +591,8 @@ void Instance::Private::requestConfigIfOld() {
 void Instance::Private::requestConfigIfExpired() {
 	const auto requestIn = (_configExpiresAt - crl::now());
 	if (requestIn > 0) {
-		base::call_delayed(
-			std::min(requestIn, 3600 * crl::time(1000)),
-			_instance,
-			[=] { requestConfigIfExpired(); });
+		_configExpiresTimer.callOnce(
+			std::min(requestIn, 3600 * crl::time(1000)));
 	} else {
 		requestConfig();
 	}
