@@ -138,6 +138,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <limits>
 #include <QtCore/QMimeData>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/features/message_shot/message_shot.h"
+#include "base/unixtime.h"
+
+
 namespace HistoryView {
 
 namespace {
@@ -504,6 +510,10 @@ ChatWidget::ChatWidget(
 	) | rpl::on_next([=] {
 		confirmDeleteSelected();
 	}, _topBar->lifetime());
+	_topBar->messageShotSelectionRequest(
+	) | rpl::on_next([=] {
+		AyuFeatures::MessageShot::Wrapper(_inner, [=] { clearSelected(); });
+	}, _topBar->lifetime());
 	_topBar->forwardSelectionRequest(
 	) | rpl::on_next([=] {
 		confirmForwardSelected();
@@ -772,12 +782,14 @@ ChatWidget::ChatWidget(
 				}
 			}
 			if (action.options.scheduled) {
-				if (_topic) {
+				const auto &ghost = AyuSettings::ghost(&session());
+				if (!ghost.isUseScheduledMessages() && _topic) {
 					crl::on_main(this, [=, t = _topic] {
 						controller->showSection(
 							std::make_shared<HistoryView::ScheduledMemento>(t));
 					});
-				} else if (mode() == Mode::History) {
+				} else if (!ghost.isUseScheduledMessages()
+						&& mode() == Mode::History) {
 					crl::on_main(this, [=, history = action.history] {
 						controller->showSection(
 							std::make_shared<HistoryView::ScheduledMemento>(
@@ -2140,7 +2152,8 @@ bool ChatWidget::confirmSendingFiles(
 		_composeControls->getTextWithAppliedMarkdown(),
 		_peer,
 		Api::SendType::Normal,
-		sendMenuDetails());
+		sendMenuDetails(),
+		[=](const TextWithTags &text) { _composeControls->setText(text); });
 	box->setReplyTo(_composeControls->replyingToMessage());
 	_sendFilesBox = box.data();
 

@@ -107,6 +107,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QSvgRenderer>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+
+
 namespace InlineBots {
 namespace {
 
@@ -857,6 +861,11 @@ void BotAction::handleKeyPress(not_null<QKeyEvent*> e) {
 	}
 }
 
+QString WebviewPlatform() {
+	const auto &settings = AyuSettings::getInstance();
+	return settings.spoofWebviewAsAndroid() ? "android" : "tdesktop";
+}
+
 } // namespace
 
 WebViewResultData ParseWebViewResult(const MTPWebViewResult &result) {
@@ -1259,7 +1268,7 @@ void WebViewInstance::requestButton() {
 		MTP_bytes(_button.url),
 		MTP_string(_button.startCommand),
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
-		MTP_string("tdesktop"),
+		MTP_string(WebviewPlatform()),
 		action.mtpReplyTo(),
 		(action.options.sendAs
 			? action.options.sendAs->input()
@@ -1294,7 +1303,7 @@ void WebViewInstance::requestSimple() {
 		MTP_bytes(_button.url),
 		MTP_string(_button.startCommand),
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
-		MTP_string("tdesktop")
+		MTP_string(WebviewPlatform())
 	)).done([=](const MTPWebViewResult &result) {
 		show({
 			.result = ParseWebViewResult(result),
@@ -1322,7 +1331,7 @@ void WebViewInstance::requestMain() {
 		_bot->inputUser(),
 		MTP_string(_button.startCommand),
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
-		MTP_string("tdesktop")
+		MTP_string(WebviewPlatform())
 	)).done([=](const MTPWebViewResult &result) {
 		show({
 			.result = ParseWebViewResult(result),
@@ -1350,7 +1359,7 @@ void WebViewInstance::requestApp(bool allowWrite) {
 		MTP_inputBotAppID(MTP_long(app->id), MTP_long(app->accessHash)),
 		MTP_string(_appStartParam),
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
-		MTP_string("tdesktop")
+		MTP_string(WebviewPlatform())
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
 		show({
@@ -1373,7 +1382,7 @@ void WebViewInstance::requestChatJoin() {
 		MTP_flags(Flag::f_theme_params),
 		MTP_long(join.queryId),
 		MTP_dataJSON(MTP_bytes(botThemeParams().json)),
-		MTP_string("tdesktop")
+		MTP_string(WebviewPlatform())
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
 		show({

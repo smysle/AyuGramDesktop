@@ -36,6 +36,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/ayu_worker.h"
+#include "ayu/data/messages_storage.h"
+#include "ayu/utils/telegram_helpers.h"
+
+
 namespace Data {
 namespace {
 
@@ -82,11 +89,12 @@ MTPInputReplyTo ReplyToForMTP(
 		const auto rich = replyTo.messageId
 			? replyTo.richQuote.get()
 			: nullptr;
+		const auto textNormalized = reverseLocalPremiumEmoji(replyTo.quote, history, true);
 		const auto quoteEntities = rich
 			? MTPVector<MTPMessageEntity>()
 			: Api::EntitiesToMTP(
 				&history->session(),
-				replyTo.quote.entities,
+				textNormalized.entities,
 				Api::ConvertOption::SkipLocal);
 		using Flag = MTPDinputReplyToMessage::Flag;
 		return MTP_inputReplyToMessage(
@@ -95,7 +103,7 @@ MTPInputReplyTo ReplyToForMTP(
 				| (rich
 					? (Flag::f_quote_rich
 						| (rich->offset ? Flag::f_quote_offset : Flag()))
-					: replyTo.quote.text.isEmpty()
+					: textNormalized.text.isEmpty()
 					? Flag()
 					: (Flag::f_quote_text | Flag::f_quote_offset))
 				| (replyToMonoforumPeerId
@@ -113,7 +121,7 @@ MTPInputReplyTo ReplyToForMTP(
 			(external
 				? owner->peer(replyTo.messageId.peer)->input()
 				: MTPInputPeer()),
-			MTP_string(replyTo.quote.text),
+			MTP_string(textNormalized.text),
 			quoteEntities,
 			MTP_int(rich ? rich->offset.value_or(0) : replyTo.quoteOffset),
 			(replyToMonoforumPeerId
@@ -136,11 +144,12 @@ MTPInputMedia WebPageForMTP(
 		const Data::WebPageDraft &draft,
 		bool required) {
 	using Flag = MTPDinputMediaWebPage::Flag;
+	const auto url = getBetterLinkPreview(draft.url);
 	return MTP_inputMediaWebPage(
-		MTP_flags(((false && required) ? Flag() : Flag::f_optional)
+		MTP_flags((draft.previewChanged ? Flag() : Flag::f_optional)
 			| (draft.forceLargeMedia ? Flag::f_force_large_media : Flag())
 			| (draft.forceSmallMedia ? Flag::f_force_small_media : Flag())),
-		MTP_string(draft.url));
+		MTP_string(url));
 }
 
 Histories::Histories(not_null<Session*> owner)
@@ -721,6 +730,25 @@ void Histories::reportPendingDeliveries() {
 
 void Histories::sendReadRequests() {
 	DEBUG_LOG(("Reading: send requests with count %1.").arg(_states.size()));
+
+	// AyuGram sendReadMessages
+	const auto &ghost = AyuSettings::ghost(&_owner->session());
+	if (!ghost.sendReadMessages()) {
+		DEBUG_LOG(("[AyuGram] Don't read messages"));
+		_readRequestsTimer.cancel();
+		auto histories = std::vector<not_null<History*>>();
+		histories.reserve(_states.size());
+		for (auto &[history, state] : _states) {
+			state.willReadTill = 0;
+			state.willReadWhen = 0;
+			histories.push_back(history);
+		}
+		for (const auto history : histories) {
+			checkEmptyState(history);
+		}
+		return;
+	}
+
 	if (_states.empty()) {
 		return;
 	}
@@ -1020,7 +1048,9 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 				continue;
 			}
 			remove.push_back(item);
-			if (item->isRegular()) {
+			if (item->isDeleted()) {
+				AyuMessages::removeDeletedMessage(item);
+			} else if (item->isRegular()) {
 				idsByPeer[history].push_back(MTP_int(itemId.msg));
 			}
 		}
@@ -1154,6 +1184,7 @@ int Histories::sendPreparedMessage(
 		Fn<PreparedMessage(not_null<History*>, FullReplyTo)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail) {
+	markReadAfterAction(history);
 	if (isCreatingTopic(history, replyTo.topicRootId)) {
 		const auto id = ++_requestAutoincrement;
 		const auto creatingId = FullMsgId(
@@ -1212,6 +1243,7 @@ int Histories::sendPreparedMessage(
 					const MTPUpdates &result,
 					const MTP::Response &response) {
 				api->applyUpdates(result, randomId);
+				AyuWorker::markAsOnline(&history->owner().session());
 				done(result, response);
 				finish();
 			}).fail([=](

@@ -33,6 +33,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_webauthn.h"
 #include "styles/style_intro.h"
 
+// AyuGram includes
+#include "main/main_domain.h"
+
+
 namespace Intro {
 namespace details {
 namespace {
@@ -287,6 +291,10 @@ void QrWidget::submit() {
 
 rpl::producer<QString> QrWidget::nextButtonText() const {
 	return rpl::single(QString());
+}
+
+bool QrWidget::hasBack() const {
+	return Core::App().domain().maybeLastOrSomeAuthedAccount();
 }
 
 void QrWidget::setupControls() {

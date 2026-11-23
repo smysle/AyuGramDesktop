@@ -40,9 +40,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 	@autoreleasepool {
 
-#ifdef OS_MAC_STORE
-	// In AppStore version we don't have Updater.
-	// We just relaunch our app.
+#if defined OS_MAC_STORE || defined TDESKTOP_DISABLE_AUTOUPDATE
 	if (action == UpdaterLaunch::JustRelaunch) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -51,7 +49,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 #pragma clang diagnostic pop
 		return true;
 	}
-#endif // OS_MAC_STORE
+#endif
 
 	NSString *path = @"", *args = @"";
 	@try {

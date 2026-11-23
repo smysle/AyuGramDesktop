@@ -51,6 +51,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
+// AyuGram includes
+#include "ayu/features/filters/filters_controller.h"
+#include "styles/style_ayu_icons.h"
+
+
 namespace Dialogs::Ui {
 
 const char kOptionDialogsMuteIcon[] = "dialogs-mute-icon";
@@ -244,9 +249,7 @@ int PaintBadges(
 	}
 	if ((!narrow || (painted < 2))
 		&& (badgesState.mention || badgesState.reaction)) {
-		const auto muted = badgesState.mention
-			? badgesState.mentionMuted
-			: badgesState.reactionMuted;
+		const auto muted = false;
 		paintIconBadge(
 			badgesState.mention
 				? (narrow
@@ -270,15 +273,16 @@ int PaintBadges(
 		++painted;
 	}
 	if ((!narrow || (painted < 2)) && badgesState.poll) {
+		const auto muted = false;
 		paintIconBadge(
 			narrow
-				? (badgesState.pollMuted
+				? (muted
 					? st::dialogsUnreadPollBadgeMuted
 					: st::dialogsUnreadPollBadge)
-				: (badgesState.pollMuted
+				: (muted
 					? st::dialogsUnreadPollMuted
 					: st::dialogsUnreadPoll),
-			badgesState.pollMuted,
+			muted,
 			UnreadBadgeSize::PollInDialogs);
 		++painted;
 	}
@@ -478,6 +482,11 @@ void PaintRow(
 	const auto history = entry->asHistory();
 	const auto thread = entry->asThread();
 	const auto sublist = entry->asSublist();
+	const auto itemIsFiltered = item && FiltersController::filtered(item);
+	const auto itemIsEmpty = item && (item->isEmpty() || itemIsFiltered);
+	const auto showFilteredItem = !fakeRow
+		&& itemIsEmpty
+		&& itemIsFiltered;
 
 	auto bg = context.active
 		? st::dialogsBgActive
@@ -568,7 +577,9 @@ void PaintRow(
 		PaintExpandedTopicsBar(p, context.topicsExpanded);
 	}
 	if (context.narrow) {
-		if (!draft && item && !item->isEmpty()) {
+		if (!draft
+			&& item
+			&& (!itemIsEmpty || showFilteredItem)) {
 			PaintNarrowCounter(p, context, badgesState);
 		}
 		return;
@@ -826,7 +837,7 @@ void PaintRow(
 					tr::lng_community_chat_loading(tr::now));
 			}
 		}
-	} else if (!item->isEmpty()) {
+	} else if (!itemIsEmpty || showFilteredItem) {
 		if ((thread || sublist) && !promoted) {
 			PaintDialogDate(p, entry, fakeRow, date, rectForName, context);
 		}
@@ -905,6 +916,14 @@ void PaintRow(
 				: context.selected
 				? &st::dialogsVerifiedIconOver
 				: &st::dialogsVerifiedIcon),
+			.exteraOfficial = &ThreeStateIcon(
+				st::dialogsExteraOfficialIcon,
+				context.active,
+				context.selected),
+			.exteraSupporter = &ThreeStateIcon(
+				st::dialogsExteraSupporterIcon,
+				context.active,
+				context.selected),
 			.premium = &ThreeStateIcon(
 				st::dialogsPremiumIcon,
 				context.active,
@@ -1306,21 +1325,28 @@ void RowPainter::Paint(
 		not_null<const FakeRow*> row,
 		const PaintContext &context) {
 	const auto item = row->item();
+	const auto itemIsFiltered = FiltersController::filtered(item);
 	const auto topic = context.forum ? row->topic() : nullptr;
 	const auto history = topic ? nullptr : item->history().get();
 	const auto entry = topic ? (Entry*)topic : (Entry*)history;
 	auto cloudDraft = nullptr;
 	const auto from = [&] {
 		const auto in = row->searchInChat();
-		return (topic && (in.topic() != topic))
-			? nullptr
-			: in
-			? item->displayFrom()
-			: history->peer->migrateTo()
+		if (topic && (in.topic() != topic)) {
+			return (PeerData*)nullptr;
+		} else if (in && !itemIsFiltered) {
+			return item->displayFrom();
+		} else if (!history) {
+			return (PeerData*)nullptr;
+		}
+		return history->peer->migrateTo()
 			? history->peer->migrateTo()
 			: history->peer.get();
 	}();
 	const auto hiddenSenderInfo = [&]() -> const HiddenSenderInfo* {
+		if (itemIsFiltered) {
+			return nullptr;
+		}
 		if (const auto searchChat = row->searchInChat()) {
 			if (const auto peer = searchChat.peer()) {
 				if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {

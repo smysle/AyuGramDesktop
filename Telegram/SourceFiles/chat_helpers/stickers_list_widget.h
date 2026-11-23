@@ -84,6 +84,7 @@ struct StickerCustomRecentDescriptor {
 struct StickersListDescriptor {
 	std::shared_ptr<Show> show;
 	StickersListMode mode = StickersListMode::Full;
+	bool requireConfirmation = false;
 	Fn<bool()> paused;
 	std::vector<StickerCustomRecentDescriptor> customRecentList;
 	const style::EmojiPan *st = nullptr;
@@ -496,6 +497,7 @@ private:
 		not_null<DocumentData*> document);
 
 	const Mode _mode;
+	bool _requireConfirmation;
 	const std::shared_ptr<Show> _show;
 	const ComposeFeatures _features;
 	Ui::RoundRect _overBg;
@@ -517,6 +519,7 @@ private:
 
 	bool _paintAsPremium = false;
 	bool _showingSetById = false;
+	bool _refreshDelayed = false;
 	crl::time _lastScrolledAt = 0;
 	crl::time _lastFullUpdatedAt = 0;
 

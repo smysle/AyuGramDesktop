@@ -30,6 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "styles/style_overview.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/utils/telegram_helpers.h"
+
+
 namespace Info::Media {
 namespace {
 
@@ -493,6 +498,10 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	const auto item = _controller->session().data().message(
 		computeFullId(universalId));
 	if (!item) {
+		return nullptr;
+	}
+
+	if (isMessageHidden(item)) {
 		return nullptr;
 	}
 	return CreateLayout(delegate, item, type);

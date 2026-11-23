@@ -79,6 +79,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/ayu_worker.h"
+
+
 namespace Api {
 namespace {
 
@@ -1081,8 +1086,12 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		Core::App().checkAutoLock(lastNonIdleTime);
 	});
 
-	const auto &config = _session->serverConfig();
-	bool isOnline = Core::App().hasActiveWindow(&session());
+	// AyuGram sendOnlinePackets
+	const auto &ghost = AyuSettings::ghost(_session);
+	const auto& config = _session->serverConfig();
+	bool isOnlineOrig = Core::App().hasActiveWindow(&session());
+	bool isOnline = ghost.sendOnlinePackets() && isOnlineOrig;
+
 	int updateIn = config.onlineUpdatePeriod;
 	Assert(updateIn >= 0);
 	if (isOnline) {
@@ -1106,7 +1115,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		|| (isOnline && gotOtherOffline)) {
 		api().request(base::take(_onlineRequest)).cancel();
 
-		_lastWasOnline = isOnline;
+		_lastWasOnline = isOnlineOrig;
 		_lastSetOnline = ms;
 		if (!Core::Quitting()) {
 			_onlineRequest = api().request(MTPaccount_UpdateStatus(
@@ -1129,7 +1138,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 		session().changes().peerUpdated(
 			self,
 			Data::PeerUpdate::Flag::OnlineStatus);
-		if (!isOnline) { // Went offline, so we need to save message draft to the cloud.
+		if (!isOnlineOrig) { // Went offline, so we need to save message draft to the cloud.
 			api().saveCurrentDraftToCloud();
 			session().data().maybeStopWatchForOffline(self);
 		}
@@ -2232,6 +2241,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			} else if (d.vstatus().type() == mtpc_userStatusOnline) {
 				cSetOtherOnline(
 					d.vstatus().c_userStatusOnline().vexpires().v);
+				AyuWorker::markAsOnline(_session);
 			}
 		}
 	} break;

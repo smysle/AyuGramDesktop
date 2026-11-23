@@ -348,7 +348,7 @@ bool update() {
 					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + updaterName + L"'");
 					delFolder();
 					return false;
-				} else if (equal(tofname, updateTo + L"Telegram.exe") && exeName != L"Telegram.exe") {
+				} else if (equal(tofname, updateTo + L"AyuGram.exe") && exeName != L"AyuGram.exe") {
 					wstring fullBinaryPath = updateTo + exeName;
 					writeLog(L"Target binary found: '" + tofname + L"', changing to '" + fullBinaryPath + L"'");
 					tofname = fullBinaryPath;
@@ -729,14 +729,14 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				exeName = args[i];
 				for (int j = 0, l = exeName.size(); j < l; ++j) {
 					if (exeName[j] == L'/' || exeName[j] == L'\\') {
-						exeName = L"Telegram.exe";
+						exeName = L"AyuGram.exe";
 						break;
 					}
 				}
 			}
 		}
 		if (exeName.empty()) {
-			exeName = L"Telegram.exe";
+			exeName = L"AyuGram.exe";
 		}
 		if (!processArgumentsValid) {
 			writeLog(L"Invalid update process arguments; "

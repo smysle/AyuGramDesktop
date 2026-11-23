@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "ui/userpic_view.h"
 
+// AyuGram includes
+#include "ui/effects/animations.h"
+
+
 class History;
 class HistoryBlock;
 class HistoryItem;
@@ -518,6 +522,10 @@ public:
 	[[nodiscard]] bool isHiddenByGroup() const;
 	[[nodiscard]] virtual bool isHidden() const;
 
+	[[nodiscard]] float64 deletedOpacity() const;
+	void startDeletedAnimation();
+	[[nodiscard]] Ui::Animations::Simple takeDeletedAnimation();
+
 	[[nodiscard]] bool isIsolatedEmoji() const {
 		return (_flags & Flag::SpecialOnlyEmoji)
 			&& _text.isIsolatedEmoji();
@@ -735,6 +743,7 @@ public:
 		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 	void hideSpoilers();
+	void revealSpoilers();
 	void repaint(QRect r = QRect()) const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
@@ -850,6 +859,7 @@ private:
 	virtual void invalidateTextDependentCache() {
 	}
 
+	void refreshDeletedAnimationTarget();
 	void refreshMedia(Element *replacing);
 	void setTextWithLinks(
 		const TextWithEntities &text,
@@ -880,6 +890,9 @@ private:
 
 	mutable Flags _flags = Flag(0);
 	Context _context = Context();
+
+	mutable Ui::Animations::Simple _deletedOpacityAnimation;
+	mutable std::shared_ptr<base::weak_ptr<Element>> _deletedOpacityAnimationTarget;
 
 };
 

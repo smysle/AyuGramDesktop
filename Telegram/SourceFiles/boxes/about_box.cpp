@@ -33,39 +33,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
+// AyuGram includes
+#include "window/window_session_controller.h"
+#include "window/window_session_controller_link_info.h"
+
+
 namespace {
 
-rpl::producer<TextWithEntities> Text1() {
-	return tr::lng_about_text1(
-		lt_api_link,
-		tr::lng_about_text1_api(tr::url(u"https://core.telegram.org/api"_q)),
-		tr::marked);
-}
-
-rpl::producer<TextWithEntities> Text2() {
+rpl::producer<TextWithEntities> Text() {
 	return tr::lng_about_text2(
 		lt_gpl_link,
-		rpl::single(tr::link(
+		rpl::single(Ui::Text::Link(
 			"GNU GPL",
-			"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE")),
+			"https://github.com/AyuGram/AyuGramDesktop/blob/dev/LICENSE")),
 		lt_github_link,
-		rpl::single(tr::link(
+		rpl::single(Ui::Text::Link(
 			"GitHub",
-			"https://github.com/telegramdesktop/tdesktop")),
-		tr::marked);
-}
-
-rpl::producer<TextWithEntities> Text3() {
-	return tr::lng_about_text3(
-		lt_faq_link,
-		tr::lng_about_text3_faq(tr::url(telegramFaqLink())),
+			"https://github.com/AyuGram/AyuGramDesktop")),
 		tr::marked);
 }
 
 } // namespace
 
-void AboutBox(not_null<Ui::GenericBox*> box) {
-	box->setTitle(u"Telegram Desktop"_q);
+void AboutBox(not_null<Ui::GenericBox*> box, Window::SessionController* controller) {
+	box->setTitle(rpl::single(u"AyuGram Desktop"_q));
 
 	auto layout = box->verticalLayout();
 
@@ -83,35 +74,7 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 			st::boxRowPadding.right(),
 			st::boxRowPadding.bottom()));
 	version->setClickedCallback([=] {
-		if (cRealAlphaVersion()) {
-			auto url = u"https://tdesktop.com/"_q;
-			if (Platform::IsWindows32Bit()) {
-				url += u"win/%1.zip"_q;
-			} else if (Platform::IsWindows64Bit()) {
-				url += u"win64/%1.zip"_q;
-			} else if (Platform::IsWindowsARM64()) {
-				url += u"winarm/%1.zip"_q;
-			} else if (Platform::IsMac()) {
-				url += u"mac/%1.zip"_q;
-			} else if (Platform::IsLinux()) {
-				url += u"linux/%1.tar.xz"_q;
-			} else {
-				Unexpected("Platform value.");
-			}
-			url = url.arg(u"talpha%1_%2"_q
-				.arg(cRealAlphaVersion())
-				.arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
-
-			QGuiApplication::clipboard()->setText(url);
-
-			box->getDelegate()->show(
-				Ui::MakeInformBox(
-					"The link to the current private alpha "
-					"version of Telegram Desktop was copied "
-					"to the clipboard."));
-		} else {
-			File::OpenUrl(Core::App().changelogLink());
-		}
+		File::OpenUrl(Core::App().changelogLink());
 	});
 
 	Ui::AddSkip(layout, st::aboutTopSkip);
@@ -124,11 +87,18 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 		Ui::AddSkip(layout, st::aboutSkip);
 	};
 
-	addText(Text1());
-	addText(Text2());
-	addText(Text3());
+	addText(Text());
 
 	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	box->addLeftButton(
+		rpl::single(QString("@AyuGramReleases")),
+		[box, controller]
+		{
+			box->closeBox();
+			controller->showPeerByLink(Window::PeerByLinkInfo{
+				.usernameOrId = QString("ayugramreleases"),
+			});
+		});
 
 	box->setWidth(st::aboutWidth);
 }

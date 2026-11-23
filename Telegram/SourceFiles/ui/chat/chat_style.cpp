@@ -21,6 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_polls.h"
 #include "styles/style_widgets.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "styles/style_ayu_icons.h"
+
+
 namespace Ui {
 namespace {
 
@@ -43,8 +48,14 @@ void EnsureBlockquoteCache(
 	cache = std::make_unique<Text::QuotePaintCache>();
 	const auto &colors = values();
 	cache->bg = colors.bg;
+	cache->bg2 = colors.bg;
 	cache->outlines = colors.outlines;
 	cache->icon = colors.name;
+
+	const auto &settings = AyuSettings::getInstance();
+	if (settings.simpleQuotesAndReplies()) {
+		cache->bg = QColor(0, 0, 0, 0);
+	}
 }
 
 void EnsurePreCache(
@@ -370,6 +381,14 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyBubbleTailInRightSelected,
 		st::historyBubbleTailOutRight,
 		st::historyBubbleTailOutRightSelected);
+
+	make(
+		&MessageStyle::channelBadgeIcon,
+		st::inChannelBadgeIcon,
+		st::inChannelBadgeSelectedIcon,
+		st::outChannelBadgeIcon,
+		st::outChannelBadgeSelectedIcon);
+
 	make(
 		&MessageStyle::historyRepliesIcon,
 		st::historyRepliesInIcon,
@@ -502,6 +521,12 @@ ChatStyle::ChatStyle(rpl::producer<ColorIndicesCompressed> colorIndices) {
 		st::historyFileInDocumentSelected,
 		st::historyFileOutDocument,
 		st::historyFileOutDocumentSelected);
+	make(
+		&MessageStyle::historyFilePlugin,
+		st::ayuHistoryFileInPlugin,
+		st::ayuHistoryFileInPluginSelected,
+		st::ayuHistoryFileOutPlugin,
+		st::ayuHistoryFileOutPluginSelected);
 	make(
 		&MessageStyle::historyAudioDownload,
 		st::historyAudioInDownload,

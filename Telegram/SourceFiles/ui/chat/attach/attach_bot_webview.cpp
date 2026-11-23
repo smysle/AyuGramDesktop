@@ -59,6 +59,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <algorithm>
 #include <memory>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "styles/style_ayu_styles.h"
+
+
 namespace Ui::BotWebView {
 
 namespace {
@@ -395,6 +400,18 @@ void LogNativeMessageRejected(
 	return tr::lng_credits_box_history_entry_miniapp(tr::now)
 		+ u": "_q
 		+ title;
+}
+
+[[nodiscard]] QSize PanelInnerSize() {
+	const auto &settings = AyuSettings::getInstance();
+	auto size = QSize(st::botWebViewPanelSize);
+	if (settings.increaseWebviewHeight()) {
+		size.setHeight(st::botWebViewPanelHeightIncreased);
+	}
+	if (settings.increaseWebviewWidth()) {
+		size.setWidth(st::botWebViewPanelWidthIncreased);
+	}
+	return size;
 }
 
 [[nodiscard]] QColor ResolveExternalShellThemeColor(QColor color) {
@@ -1256,7 +1273,8 @@ Panel::Panel(Args &&args)
 		}, _widget->lifetime());
 	}
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
-	_widget->setInnerSize(st::botWebViewPanelSize, true);
+
+	_widget->setInnerSize(PanelInnerSize(), true);
 
 	const auto panel = _widget.get();
 	rpl::duplicate(
@@ -2238,7 +2256,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				? LinuxShell::Unscaled(st::botWebViewShellShadowPadding)
 				: QMargins(),
 			.initialSize = _externalShell
-				? LinuxShell::WindowSize(st::botWebViewPanelSize)
+				? LinuxShell::WindowSize(PanelInnerSize())
 				: QSize(),
 			.shellMessageToken = _externalShell
 				? _externalShellToken

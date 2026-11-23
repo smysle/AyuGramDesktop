@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 
+#include <span>
+
 class History;
 
 namespace Dialogs {
@@ -170,6 +172,10 @@ public:
 
 	[[nodiscard]] FilterId defaultId() const;
 	[[nodiscard]] FilterId lookupId(int index) const;
+	[[nodiscard]] std::span<const ChatFilter> startupOptions() const;
+	[[nodiscard]] std::optional<FilterId> startupId() const;
+	void setStartupId(std::optional<FilterId> id);
+	[[nodiscard]] rpl::producer<> startupIdChanges() const;
 
 	bool loadNextExceptions(bool chatsListLoaded);
 
@@ -239,6 +245,7 @@ private:
 	std::vector<ChatFilter> _list;
 	base::flat_map<FilterId, std::unique_ptr<Dialogs::MainList>> _chatsLists;
 	rpl::event_stream<> _listChanged;
+	rpl::event_stream<> _startupIdChanged;
 	rpl::event_stream<FilterId> _isChatlistChanged;
 	rpl::event_stream<TagColorChanged> _tagColorChanged;
 	mtpRequestId _loadRequestId = 0;
@@ -265,6 +272,8 @@ private:
 	base::flat_map<FilterId, MoreChatsData> _moreChatsData;
 	rpl::event_stream<FilterId> _moreChatsUpdated;
 	base::Timer _moreChatsTimer;
+
+	rpl::lifetime _lifetime;
 
 };
 

@@ -28,6 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QLocale>
 
+// AyuGram includes
+#include "ayu/ui/ayu_userpic.h"
+
+
 namespace Lang {
 namespace {
 
@@ -433,7 +437,7 @@ void Action::updateUserpicsFromContent() {
 }
 
 void Action::populateSubmenu() {
-	if (_content.participants.size() < 1) {
+	if (_content.participants.size() < 1 || !isEnabled()) {
 		_submenu.clear();
 		_parentMenu->removeSubmenu(action());
 		if (!isEnabled()) {
@@ -446,7 +450,15 @@ void Action::populateSubmenu() {
 		action(),
 		st::whoReadMenu);
 	_submenu.populate(submenu, _content);
-	_parentMenu->checkSubmenuShow();
+	if (isSelected() && lastTriggeredSource() == Menu::TriggeredSource::Mouse) {
+		PostponeCall(this, [=] {
+			if (isEnabled()
+				&& isSelected()
+				&& lastTriggeredSource() == Menu::TriggeredSource::Mouse) {
+				_parentMenu->checkSubmenuShow();
+			}
+		});
+	}
 }
 
 void Action::paint(Painter &p) {
@@ -1139,11 +1151,11 @@ void WhoReactedEntryAction::paint(Painter &&p) {
 			auto bgPen = bg->p;
 			bgPen.setWidthF(st::lineWidth * 6.);
 			p.setPen(bgPen);
-			p.drawEllipse(photoLeft, photoTop, photoSize, photoSize);
+			AyuUserpic::PaintShape(p, photoLeft, photoTop, photoSize);
 			auto fgPen = st::windowBgActive->p;
 			fgPen.setWidthF(st::lineWidth * 2.);
 			p.setPen(fgPen);
-			p.drawEllipse(photoLeft, photoTop, photoSize, photoSize);
+			AyuUserpic::PaintShape(p, photoLeft, photoTop, photoSize);
 		}
 	} else if (!_custom) {
 		st::menuIconReactions.paintInCenter(

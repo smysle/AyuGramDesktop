@@ -135,6 +135,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h" // st::boxLabel
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+
+
 namespace Window {
 namespace {
 
@@ -2223,11 +2227,16 @@ rpl::producer<> SessionController::filtersMenuChanged() const {
 void SessionController::checkOpenedFilter() {
 	activateFirstChatsFilter();
 	if (const auto filterId = activeChatsFilterCurrent()) {
-		const auto &list = session().data().chatsFilters().list();
+		const auto &filters = session().data().chatsFilters();
+		const auto &list = filters.list();
 		const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 		if (i == end(list)) {
+			const auto &settings = AyuSettings::getInstance();
+			const auto fallback = settings.hideAllChatsFolder()
+				? filters.defaultId()
+				: FilterId();
 			setActiveChatsFilter(
-				0,
+				fallback,
 				{ anim::type::normal, anim::activation::background });
 		}
 	}
@@ -2240,7 +2249,9 @@ void SessionController::activateFirstChatsFilter() {
 		return;
 	}
 	_filtersActivated = true;
-	const auto id = session().data().chatsFilters().defaultId();
+	const auto &filters = session().data().chatsFilters();
+	const auto preferred = filters.startupId();
+	const auto id = preferred.value_or(filters.defaultId());
 	const auto main = widget()->sessionContent();
 	if (main && !main->isMainSectionShown()) {
 		setActiveChatsFilter(

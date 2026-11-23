@@ -76,6 +76,7 @@ ComposeIcons {
 	menuEmojiViewPack: icon;
 	menuEmojiRemoveRecent: icon;
 	menuMute: icon;
+	menuUnmute: icon;
 	menuSchedule: icon;
 	menuWhenOnline: icon;
 	menuReply: icon;
@@ -763,6 +764,7 @@ defaultComposeIcons: ComposeIcons {
 	menuEmojiViewPack: menuIconShowAll;
 	menuEmojiRemoveRecent: menuIconCancel;
 	menuMute: menuIconMute;
+	menuUnmute: menuIconUnmute;
 	menuSchedule: menuIconSchedule;
 	menuWhenOnline: menuIconWhenOnline;
 	menuReply: menuIconReply;

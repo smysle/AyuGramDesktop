@@ -303,6 +303,12 @@ void AddDownloadFilesAction(
 			return;
 		}
 	}
+	std::sort(docs.begin(), docs.end(), [](const auto &a, const auto &b) {
+		return a.second < b.second;
+	});
+	std::sort(photos.begin(), photos.end(), [](const auto &a, const auto &b) {
+		return a.second < b.second;
+	});
 	if (docs.empty() && photos.empty()) {
 		return;
 	}
@@ -329,6 +335,12 @@ void AddDownloadFilesAction(
 			return;
 		}
 	}
+	std::sort(docs.begin(), docs.end(), [](const auto &a, const auto &b) {
+		return a.second < b.second;
+	});
+	std::sort(photos.begin(), photos.end(), [](const auto &a, const auto &b) {
+		return a.second < b.second;
+	});
 	if (docs.empty() && photos.empty()) {
 		return;
 	}

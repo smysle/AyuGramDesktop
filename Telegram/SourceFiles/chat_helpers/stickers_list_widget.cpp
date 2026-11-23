@@ -64,6 +64,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "styles/style_ayu_styles.h"
+
+
 namespace ChatHelpers {
 
 [[nodiscard]] QVector<MTPstring> SearchStickersLangCodes() {
@@ -279,6 +284,7 @@ StickersListWidget::StickersListWidget(
 	descriptor.show,
 	descriptor.paused)
 , _mode(descriptor.mode)
+, _requireConfirmation(descriptor.requireConfirmation)
 , _show(std::move(descriptor.show))
 , _features(descriptor.features)
 , _overBg(st::roundRadiusLarge, st().overBg)
@@ -365,7 +371,11 @@ StickersListWidget::StickersListWidget(
 			? Data::StickersType::Masks
 			: Data::StickersType::Stickers
 		) | rpl::on_next([=] {
-			refreshRecent();
+			if (underMouse()) {
+				_refreshDelayed = true;
+			} else {
+				refreshRecent();
+			}
 		}, lifetime());
 	}
 
@@ -955,6 +965,11 @@ void StickersListWidget::fillLocalSearchShortcuts(const QString &query) {
 }
 
 bool StickersListWidget::addSearchShortcut(not_null<StickersSet*> set) {
+	const auto &settings = AyuSettings::getInstance();
+	if (settings.showOnlyAddedEmojisAndStickers()
+		&& !SetInMyList(set->flags)) {
+		return false;
+	}
 	if (ranges::contains(_searchShortcutSets, set->id, &Set::id)) {
 		return false;
 	}
@@ -2682,6 +2697,16 @@ void StickersListWidget::paintSticker(
 		(_singleSize.height() - size.height()) / 2);
 
 	auto lottieFrame = QImage();
+
+	QPainterPath path;
+	path.addRoundedRect(QRectF(ppos, size), st::stickerRoundingSize, st::stickerRoundingSize);
+
+	p.save();
+
+	p.setRenderHint(QPainter::Antialiasing, true);
+	p.setClipPath(path);
+	p.setRenderHint(QPainter::Antialiasing, false);
+
 	if (sticker.lottie && sticker.lottie->ready()) {
 		auto request = Lottie::FrameRequest();
 		request.box = boundingBoxSize() * style::DevicePixelRatio();
@@ -2735,6 +2760,8 @@ void StickersListWidget::paintSticker(
 				_pathGradient.get());
 		}
 	}
+
+	p.restore();
 
 	if (selected && stickerHasDeleteButton(set, index)) {
 		const auto xPos = pos
@@ -3333,13 +3360,33 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				&& (e->modifiers() & Qt::ControlModifier)) {
 				showStickerSetBox(document, set.id);
 			} else {
-				_chosen.fire({
-					.document = document,
-					.messageSendingFrom = messageSentAnimationInfo(
-						sticker->section,
-						sticker->index,
-						document),
-				});
+				const auto &settings = AyuSettings::getInstance();
+				auto from = messageSentAnimationInfo(
+					sticker->section,
+					sticker->index,
+					document
+				);
+				auto options = Api::SendOptions();
+				auto sendStickerCallback = crl::guard(
+					this,
+					[=, this]
+					{
+						_chosen.fire({
+							.document = document,
+							.options = options,
+							.messageSendingFrom = from,
+						});
+					});
+
+				if (settings.stickerConfirmation() && _requireConfirmation) {
+					_show->showBox(Ui::MakeConfirmBox({
+						.text = tr::ayu_ConfirmationSticker(),
+						.confirmed = sendStickerCallback,
+						.confirmText = tr::lng_send_button()
+					}));
+				} else {
+					sendStickerCallback();
+				}
 			}
 		} else if (auto set = std::get_if<OverSet>(&pressed)) {
 			Assert(set->section >= 0 && set->section < sets.size());
@@ -3482,10 +3529,16 @@ void StickersListWidget::resizeEvent(QResizeEvent *e) {
 
 void StickersListWidget::leaveEventHook(QEvent *e) {
 	clearSelection();
+	if (base::take(_refreshDelayed)) {
+		refreshRecent();
+	}
 }
 
 void StickersListWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
 	clearSelection();
+	if (base::take(_refreshDelayed)) {
+		refreshRecent();
+	}
 }
 
 void StickersListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
@@ -3763,6 +3816,7 @@ bool StickersListWidget::appendSet(
 }
 
 void StickersListWidget::refreshRecent() {
+	_refreshDelayed = false;
 	if (_section == Section::Stickers) {
 		refreshRecentStickers();
 	}
@@ -3812,7 +3866,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 
 	auto add = [&](not_null<DocumentData*> document, bool custom) {
 		if (result.size() >= kRecentDisplayLimit
-			&& !OptionUnlimitedRecentStickers.value()) {
+			&& !AyuSettings::getInstance().unlimitedRecentStickers()) {
 			return;
 		}
 		const auto i = ranges::find(result, document, &Sticker::document);
@@ -3847,6 +3901,7 @@ auto StickersListWidget::collectRecentStickers() -> std::vector<Sticker> {
 }
 
 void StickersListWidget::refreshRecentStickers(bool performResize) {
+	_refreshDelayed = false;
 	clearSelection();
 
 	auto recentPack = collectRecentStickers();

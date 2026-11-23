@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media::Player {
 namespace {
 
-constexpr auto kSpeedDebounceTimeout = crl::time(1000);
+constexpr auto kSpeedDebounceTimeout = crl::time(600);
 constexpr auto kSpeedBoostHoldDelay = crl::time(200);
 constexpr auto kSpeedBoostValue = 2.0;
 constexpr auto kSpeedBoostThrottle = crl::time(200);

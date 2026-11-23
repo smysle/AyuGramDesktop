@@ -45,6 +45,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <xxhash.h> // XXH64.
 #include <QtWidgets/QApplication>
 
+// AyuGram includes
+#include "styles/style_ayu_icons.h"
+#include "ayu/ui/ayu_userpic.h"
+
+
 [[nodiscard]] PeerListRowId UniqueRowIdFromString(const QString &d) {
 	return XXH64(d.data(), d.size() * sizeof(ushort), 0);
 }
@@ -931,6 +936,12 @@ int PeerListRow::paintNameIconGetWidth(
 		.verified = &(selected
 			? st::dialogsVerifiedIconOver
 			: st::dialogsVerifiedIcon),
+		.exteraOfficial = &(selected
+			? st::dialogsExteraOfficialIcon.over
+			: st::dialogsExteraOfficialIcon.icon),
+		.exteraSupporter = &(selected
+			? st::dialogsExteraSupporterIcon.over
+			: st::dialogsExteraSupporterIcon.icon),
 		.premium = &(selected
 			? st::dialogsPremiumIcon.over
 			: st::dialogsPremiumIcon.icon),
@@ -1110,7 +1121,7 @@ void PeerListRow::paintDisabledCheckUserpic(
 				* Ui::ForumUserpicRadiusMultiplier();
 			p.drawRoundedRect(userpicEllipse, radius, radius);
 		} else {
-			p.drawEllipse(userpicEllipse);
+			AyuUserpic::PaintShape(p, userpicEllipse);
 		}
 
 		p.setPen(iconBorderPen);

@@ -27,6 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 
+// AyuGram includes
+#include "api/api_transcribes.h"
+
+
 namespace {
 
 constexpr auto kSelectedCopyReplyPreviewLimit = 64;
@@ -78,6 +82,13 @@ TextForMimeData AppendExtraCopyText(
 		result.append(u"\n\n"_q).append(std::move(factcheckResult));
 	}
 	return result;
+}
+
+TextForMimeData ShownSummaryText(not_null<HistoryItem*> item) {
+	const auto &summary = item->summaryEntry();
+	return (!summary.result.empty() && summary.shown)
+		? TextForMimeData::WithExpandedLinks(summary.result)
+		: TextForMimeData();
 }
 
 HistorySelectedTextParts TextParts(TextForMimeData &&text) {
@@ -567,6 +578,10 @@ TextForMimeData HistorySelectedTextParts::composed(
 }
 
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
+	auto summary = ShownSummaryText(item);
+	if (!summary.empty()) {
+		return summary;
+	}
 	return AppendExtraCopyText(item, HistoryItemMainText(item));
 }
 
@@ -626,6 +641,10 @@ namespace {
 
 HistorySelectedTextParts HistoryItemTextForSelectedCopy(
 		not_null<HistoryItem*> item) {
+	auto summary = ShownSummaryText(item);
+	if (!summary.empty()) {
+		return TextParts(std::move(summary));
+	}
 	const auto media = item->media();
 	if (!media) {
 		return TextParts(HistoryItemText(item));

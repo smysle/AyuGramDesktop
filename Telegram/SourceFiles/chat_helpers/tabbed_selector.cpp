@@ -698,6 +698,7 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 				this,
 				Descriptor{
 					.show = _show,
+					.requireConfirmation = (_mode == Mode::Full),
 					.paused = paused,
 					.st = &_st,
 					.inlineQueryPeer = story

@@ -473,6 +473,13 @@ public:
 		MsgId replyToTop,
 		bool isForumPost);
 	void setPostAuthor(const QString &author);
+	void setDeleted();
+	[[nodiscard]] bool isDeleted() const;
+	[[nodiscard]] bool isBurnt() const;
+	[[nodiscard]] bool wasDeletedAnimated() const;
+	void markDeletedAnimated();
+	void applyTTL(TimeId destroyAt);
+	void setAyuHint(const QString &hint);
 	void setRealId(MsgId newId);
 	void markEphemeralSent();
 	void markTextAppearingStarted();
@@ -679,6 +686,8 @@ public:
 		return _ttlDestroyAt;
 	}
 
+	void removeTranslationBit();
+
 	[[nodiscard]] int boostsApplied() const {
 		return _boostsApplied;
 	}
@@ -782,8 +791,7 @@ private:
 	void createServiceFromMtp(const MTPDmessageService &message);
 	void applyTTL(const MTPDmessage &data);
 	void applyTTL(const MTPDmessageService &data);
-
-	void applyTTL(TimeId destroyAt);
+	void removeFromSharedMediaIndex(Storage::SharedMediaTypesMask types);
 
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.
@@ -828,6 +836,9 @@ private:
 	std::unique_ptr<Data::Media> _media;
 	std::unique_ptr<Data::MessageReactions> _reactions;
 	crl::time _reactionsLastRefreshed = 0;
+
+	bool _deleted = false;
+	bool _deletedAnimated = false;
 
 	TimeId _date = 0;
 	TimeId _ttlDestroyAt = 0;

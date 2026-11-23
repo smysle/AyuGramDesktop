@@ -45,6 +45,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_style.h"
 #include "styles/style_dialogs.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/features/message_shot/message_shot.h"
+
+
 namespace HistoryView {
 namespace {
 
@@ -398,7 +403,10 @@ Document::Document(
 		} else if (!_parent->data()->out()) {
 			const auto &data = &_parent->data()->history()->owner();
 			setDocumentLinks(_data, realParent, [=] {
-				_openl = nullptr;
+				const auto &settings = AyuSettings::getInstance();
+				if (!settings.saveDeletedMessages()) {
+					_openl = nullptr;
+				}
 
 				auto lifetime = std::make_shared<rpl::lifetime>();
 				TTLVoiceStops(fullId) | rpl::on_next([=]() mutable {
@@ -771,6 +779,7 @@ void Document::draw(
 		}
 
 		if (!mediaEditor
+			&& !AyuFeatures::MessageShot::isTakingShot()
 			&& (radial
 				|| (!loaded && !_data->loading())
 				|| _data->waitingForAlbum())) {
@@ -880,6 +889,10 @@ void Document::draw(
 						: stm->historyFilePlay)
 					: _data->isImage()
 					? stm->historyFileImage
+					: _data->filename().endsWith(
+						u".plugin"_q,
+						Qt::CaseInsensitive)
+					? stm->historyFilePlugin
 					: stm->historyFileDocument;
 			} else {
 				return _data->isSongWithCover()
@@ -1225,7 +1238,8 @@ void Document::drawCornerDownload(
 		LayoutMode mode) const {
 	if (dataLoaded()
 		|| _data->loadedInMediaCache()
-		|| !downloadInCorner()) {
+		|| !downloadInCorner()
+		|| AyuFeatures::MessageShot::isTakingShot()) {
 		return;
 	}
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
@@ -2005,6 +2019,12 @@ void Document::parentTextUpdated() {
 void Document::hideSpoilers() {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		captioned->caption.setSpoilerRevealed(false, anim::type::instant);
+	}
+}
+
+void Document::revealSpoilers() {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		captioned->caption.setSpoilerRevealed(true, anim::type::instant);
 	}
 }
 

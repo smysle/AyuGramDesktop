@@ -123,6 +123,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/ui/context_menu/context_menu.h"
+
+
 namespace HistoryView {
 namespace {
 
@@ -1397,6 +1402,15 @@ void AddMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
 		not_null<ListWidget*> list) {
+	if (request.item) {
+		const auto context = request.view ? request.view->context() : Context::History;
+		AyuUi::AddHistoryAction(menu, request.item);
+		AyuUi::AddHideMessageAction(menu, request.item);
+		AyuUi::AddUserMessagesAction(menu, request.item);
+		AyuUi::AddRepeatMessageAction(menu, request.item, context);
+		AyuUi::AddMessageDetailsAction(menu, request.item);
+	}
+
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
 	AddOfferAction(menu, request, list);
@@ -1417,6 +1431,11 @@ void AddMessageActions(
 		AddEphemeralAboutAction(menu, request.item);
 	}
 	AddRescheduleAction(menu, request, list);
+
+	if (request.item) {
+		AyuUi::AddReadUntilAction(menu, request.item);
+		AyuUi::AddBurnAction(menu, request.item);
+	}
 }
 
 void AddCopyLinkAction(
@@ -2527,6 +2546,11 @@ void AddWhoReactedAction(
 		not_null<QWidget*> context,
 		not_null<HistoryItem*> item,
 		not_null<Window::SessionController*> controller) {
+	const auto &settings = AyuSettings::getInstance();
+	if (!AyuUi::needToShowItem(settings.showViewsPanelInContextMenu())) {
+		return;
+	}
+
 	const auto whoReadIds = std::make_shared<Api::WhoReadList>();
 	const auto weak = base::make_weak(menu.get());
 	const auto user = item->history()->peer;
@@ -2992,21 +3016,9 @@ void AddSelectRestrictionAction(
 		((addIcon && !user)
 			? st::historySponsoredAboutMenuLabelPosition
 			: st::historyHasCustomEmojiPosition),
-		(peer->isMegagroup()
-			? tr::lng_context_noforwards_info_group(tr::now, tr::rich)
-			: (peer->isChannel())
-			? tr::lng_context_noforwards_info_channel(tr::now, tr::rich)
-			: (user && user->isBot())
-			? tr::lng_context_noforwards_info_bot(tr::now, tr::rich)
-			: user
-			? ((user->flags() & UserDataFlag::NoForwardsMyEnabled)
-				? tr::lng_context_noforwards_info_mine(tr::now, tr::rich)
-				: tr::lng_context_noforwards_info_his(
-					tr::now,
-					lt_user,
-					tr::bold(user->shortName()),
-					tr::rich))
-			: tr::lng_context_noforwards_info_channel(tr::now, tr::rich)),
+		tr::ayu_UnforwardableContextMenuText(
+			tr::now,
+			tr::rich),
 		(addIcon && !user) ? &st::menuIconCopyright : nullptr);
 	button->setAttribute(Qt::WA_TransparentForMouseEvents);
 	menu->addAction(std::move(button));

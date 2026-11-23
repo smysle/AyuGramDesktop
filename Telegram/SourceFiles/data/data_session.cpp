@@ -96,6 +96,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/data/messages_storage.h"
+#include "ayu/features/filters/filters_controller.h"
+#include "ayu/utils/telegram_helpers.h"
+
+
 namespace Data {
 namespace {
 
@@ -449,7 +456,11 @@ Session::Session(not_null<Main::Session*> session)
 			}
 		}, _lifetime);
 
-		_stories->loadMore(Data::StorySourcesList::NotHidden);
+		// AyuGram disableStories
+		const auto &settings = AyuSettings::getInstance();
+		if (!settings.disableStories()) {
+			_stories->loadMore(Data::StorySourcesList::NotHidden);
+		}
 	});
 
 	session->appConfig().ignoredRestrictionReasonsChanges(
@@ -1294,7 +1305,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 		channel->setName(qs(data.vtitle()), QString());
 
 		channel->setAccessHash(data.vaccess_hash().v);
-		channel->setPhoto(MTP_chatPhotoEmpty());
+		if (channel->userpicPhotoUnknown()) {
+			channel->setPhoto(MTP_chatPhotoEmpty());
+		}
 		channel->date = 0;
 		channel->setMembersCount(0);
 
@@ -3098,6 +3111,31 @@ void Session::updateEditedMessage(const MTPMessage &data) {
 		Reactions::CheckUnknownForUnread(this, data);
 		return;
 	}
+
+	// AyuGram saveMessagesHistory
+	const auto &settings = AyuSettings::getInstance();
+	HistoryMessageEdition edit;
+
+	if (data.type() != mtpc_message) {
+		goto proceed;
+	}
+	edit = HistoryMessageEdition(_session, data.c_message());
+	if (settings.saveMessagesHistory() && !existing->isLocal() && !existing->author()->isSelf() && !edit.isEditHide) {
+		const auto &msg = existing->originalText();
+		const auto unchanged = edit.richPage
+			? (Iv::FlattenRichPageSummary(edit.richPage) == msg)
+			: (edit.textWithEntities == msg);
+		if (unchanged || msg.empty()) {
+			goto proceed;
+		}
+
+		AyuMessages::addEditedMessage(existing);
+	}
+
+	FiltersController::invalidate(existing);
+
+proceed:
+
 	if (existing->isLocalUpdateMedia() && data.type() == mtpc_message) {
 		updateExistingMessage(data.c_message());
 	}
@@ -3179,6 +3217,7 @@ void Session::registerMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
 	const auto list = messagesListForInsert(peerId);
 	const auto itemId = item->id;
+
 	const auto i = list->find(itemId);
 	if (i != list->end()) {
 		LOG(("App Error: Trying to re-registerMessage()."));
@@ -3248,9 +3287,17 @@ void Session::checkTTLs() {
 		}
 		expired.insert(expired.end(), items.begin(), items.end());
 	}
-	if (!expired.empty()) {
-		notifyItemsAboutToBeDestroyed(expired);
-		for (const auto &item : expired) {
+	auto toDestroy = std::vector<not_null<HistoryItem*>>();
+	for (const auto &item : expired) {
+		if (isMessageSavable(item)) {
+			processMessageDelete(item);
+		} else {
+			toDestroy.push_back(item);
+		}
+	}
+	if (!toDestroy.empty()) {
+		notifyItemsAboutToBeDestroyed(toDestroy);
+		for (const auto &item : toDestroy) {
 			item->destroy();
 		}
 	}
@@ -3383,8 +3430,13 @@ void Session::processMessagesDeleted(
 	for (const auto &messageId : data) {
 		const auto i = list ? list->find(messageId.v) : Messages::iterator();
 		if (list && i != list->end()) {
-			const auto history = i->second->history();
-			toDestroy.push_back(i->second);
+			const auto item = i->second;
+			const auto history = item->history();
+			if (isMessageSavable(item)) {
+				processMessageDelete(item);
+			} else {
+				toDestroy.push_back(item);
+			}
 			historiesToCheck.emplace(history);
 		} else if (affected) {
 			affected->unknownMessageDeleted(messageId.v);
@@ -3410,7 +3462,11 @@ void Session::processNonChannelMessagesDeleted(const QVector<MTPint> &data) {
 	for (const auto &messageId : data) {
 		if (const auto item = nonChannelMessage(messageId.v)) {
 			const auto history = item->history();
-			toDestroy.push_back(item);
+			if (isMessageSavable(item)) {
+				processMessageDelete(item);
+			} else {
+				toDestroy.push_back(item);
+			}
 			historiesToCheck.emplace(history);
 		}
 	}
@@ -5589,7 +5645,10 @@ void Session::registerItemView(not_null<ViewElement*> view) {
 }
 
 void Session::unregisterItemView(not_null<ViewElement*> view) {
-	Expects(!_heavyViewParts.contains(view));
+	// Expects(!_heavyViewParts.contains(view));
+	if (_heavyViewParts.contains(view)) {
+		view->unloadHeavyPart(); // AyuGram: fix crash when using `saveDeletedMessages`
+	}
 
 	_shownSpoilers.remove(view);
 

@@ -111,12 +111,74 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QScrollBar>
 #include <QtWidgets/QTextEdit>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/utils/telegram_helpers.h"
+#include "base/platform/base_platform_haptic.h"
+
+
 namespace Dialogs {
 namespace {
 
 constexpr auto kSearchPerPage = 50;
 constexpr auto kStoriesExpandDuration = crl::time(200);
 constexpr auto kSearchRequestDelay = crl::time(900);
+
+enum class IdSearchType {
+	None,
+	UserOnly,
+	ChatOnly,
+	Both,
+};
+
+struct IdSearchQuery {
+	IdSearchType type = IdSearchType::None;
+	qint64 id = 0;
+};
+
+[[nodiscard]] bool IsNumericString(const QString &str) {
+	if (str.isEmpty()) {
+		return false;
+	}
+	for (const auto &ch : str) {
+		if (!ch.isDigit()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] IdSearchQuery ParseIdSearchQuery(const QString &query) {
+	if (query.startsWith(u"id:"_q, Qt::CaseInsensitive)
+		|| query.startsWith(u"id "_q, Qt::CaseInsensitive)) {
+		const auto idPart = query.mid(3).trimmed();
+		if (idPart.startsWith(u"-100"_q)) {
+			const auto chatId = idPart.mid(4);
+			if (chatId.length() >= 1 && IsNumericString(chatId)) {
+				return { IdSearchType::ChatOnly, chatId.toLongLong() };
+			}
+			return {};
+		}
+		if (idPart.length() >= 5 && IsNumericString(idPart)) {
+			return { IdSearchType::Both, idPart.toLongLong() };
+		}
+		return {};
+	}
+
+	if (query.startsWith(u"-100"_q)) {
+		const auto idPart = query.mid(4);
+		if (idPart.length() >= 1 && IsNumericString(idPart)) {
+			return { IdSearchType::ChatOnly, idPart.toLongLong() };
+		}
+		return {};
+	}
+
+	if (query.length() >= 5 && IsNumericString(query)) {
+		return { IdSearchType::UserOnly, query.toLongLong() };
+	}
+
+	return {};
+}
 
 base::options::toggle OptionForumHideChatsList({
 	.id = kOptionForumHideChatsList,
@@ -919,7 +981,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		&& row.userpicClick
 		&& (row.message.fullId.msg == ShowAtUnreadMsgId)
 		&& history->peer->hasActiveStories()
-		&& !history->peer->isSelf()) {
+		&& !history->peer->isSelf()
+		&& !AyuSettings::getInstance().disableStories()) {
 		controller()->openPeerStories(history->peer->id);
 		return;
 	} else if (userpicCommunity) {
@@ -1555,38 +1618,32 @@ void Widget::setupMainMenuToggle() {
 	Window::OtherAccountsUnreadState(
 		&controller()->session().account()
 	) | rpl::on_next([=](const Window::OthersUnreadState &state) {
-		const auto icon = !state.count
+		auto icon = !state.count
 			? nullptr
 			: !state.allMuted
 			? &st::dialogsMenuToggleUnread
 			: &st::dialogsMenuToggleUnreadMuted;
+
+		const auto &settings = AyuSettings::getInstance();
+		if (settings.hideNotificationCounters()) {
+			icon = nullptr;
+		}
+
 		_mainMenu.toggle->setIconOverride(icon, icon);
 	}, _mainMenu.toggle->lifetime());
 }
 
 void Widget::setupStories() {
+	// AyuGram disableStories
+	const auto &settings = AyuSettings::getInstance();
+	if (settings.disableStories()) {
+		return;
+	}
+
 	_stories->verticalScrollEvents(
 	) | rpl::on_next([=](not_null<QWheelEvent*> e) {
 		_scroll->viewportEvent(e);
 	}, _stories->lifetime());
-
-	if (!Core::App().settings().storiesClickTooltipHidden()) {
-		// Don't create tooltip
-		// until storiesClickTooltipHidden can be returned to false.
-		const auto hideTooltip = [=] {
-			Core::App().settings().setStoriesClickTooltipHidden(true);
-			Core::App().saveSettingsDelayed();
-		};
-		InvokeQueued(_stories.get(), [=] {
-			_stories->setShowTooltip(
-				controller()->content(),
-				rpl::combine(
-					Core::App().settings().storiesClickTooltipHiddenValue(),
-					shownValue(),
-					!rpl::mappers::_1 && rpl::mappers::_2),
-				hideTooltip);
-		});
-	}
 
 	_storiesContents.fire(Stories::ContentForSession(
 		&controller()->session(),
@@ -1688,6 +1745,7 @@ void Widget::setupStories() {
 			storiesToggleExplicitExpand(true);
 			_scroll->setOverscrollDefaults(0, 0);
 		} else {
+			base::Platform::Haptic();
 			_scroll->setOverscrollDefaults(
 				-st::dialogsStoriesFull.height,
 				0);
@@ -2616,7 +2674,7 @@ void Widget::checkUpdateStatus() {
 		}
 		_updateTelegram.create(
 			this,
-			tr::lng_update_telegram(tr::now),
+			tr::ayu_UpdateAyuGram(tr::now),
 			st::dialogsUpdateButton,
 			st::dialogsInstallUpdate,
 			st::dialogsInstallUpdateOver,
@@ -2825,6 +2883,13 @@ void Widget::updateStoriesVisibility(anim::type animated) {
 	if (!_stories) {
 		return;
 	}
+
+	const auto &settings = AyuSettings::getInstance();
+	if (settings.disableStories()) {
+		_stories->setVisible(false);
+		return;
+	}
+
 	const auto widthAnimation = !_widthAnimationCache.isNull();
 	const auto hiddenAnimated = searchHidesTopBarContent()
 		|| (_openedFolder
@@ -3273,6 +3338,56 @@ bool Widget::search(bool inCache, SearchRequestDelay delay) {
 		_topicSearchQuery = peerQuery;
 		_topicSearchFull = true;
 	}
+
+	const auto isGlobalSearch = !inPeer;
+	const auto idQuery = ParseIdSearchQuery(query);
+	const auto shouldIdSearch = isGlobalSearch && (idQuery.type != IdSearchType::None);
+
+	if (!isGlobalSearch || _idSearchQuery != query) {
+		if (!_idSearchResults.empty() || !_idSearchQuery.isEmpty()) {
+			_idSearchResults.clear();
+			_idSearchQuery.clear();
+			_inner->idSearchReceived({});
+		}
+	}
+
+	if (shouldIdSearch && !inCache && _idSearchQuery != query) {
+		const auto weak = base::make_weak(this);
+		const auto currentQuery = query;
+		const auto id = idQuery.id;
+		const auto searchType = idQuery.type;
+
+		_idSearchQuery = currentQuery;
+
+		if (searchType == IdSearchType::UserOnly || searchType == IdSearchType::Both) {
+			searchUserById(id, &session(), [=](const QString &, PeerData *peer) {
+				crl::on_main(weak, [=] {
+					if (_idSearchQuery != currentQuery) {
+						return;
+					}
+					if (peer && !ranges::contains(_idSearchResults, not_null{ peer })) {
+						_idSearchResults.push_back(peer);
+						_inner->idSearchReceived(_idSearchResults);
+					}
+				});
+			});
+		}
+
+		if (searchType == IdSearchType::ChatOnly || searchType == IdSearchType::Both) {
+			searchChatById(id, &session(), [=](const QString &, PeerData *peer) {
+				crl::on_main(weak, [=] {
+					if (_idSearchQuery != currentQuery) {
+						return;
+					}
+					if (peer && !ranges::contains(_idSearchResults, not_null{ peer })) {
+						_idSearchResults.push_back(peer);
+						_inner->idSearchReceived(_idSearchResults);
+					}
+				});
+			});
+		}
+	}
+
 	return result;
 }
 
@@ -4186,6 +4301,14 @@ bool Widget::applySearchState(SearchState state) {
 		}
 		hideChildList();
 	}
+	if (state.inChat || _searchState.inChat != state.inChat) {
+		if (!_idSearchResults.empty() || !_idSearchQuery.isEmpty()) {
+			_idSearchResults.clear();
+			_idSearchQuery.clear();
+			_inner->idSearchReceived({});
+		}
+	}
+
 	if (state.inChat
 		&& _layout == Layout::Main
 		&& state.inChat.folder() != _openedFolder) {
@@ -5154,6 +5277,11 @@ bool Widget::cancelSearch(CancelSearchOptions options) {
 		}
 	}
 	cancelSearchRequest();
+
+	_idSearchQuery.clear();
+	_idSearchResults.clear();
+	_inner->idSearchReceived({});
+
 	auto updatedState = _searchState;
 	const auto clearingQuery = clearingSuggestionsQuery
 		|| !updatedState.query.isEmpty();

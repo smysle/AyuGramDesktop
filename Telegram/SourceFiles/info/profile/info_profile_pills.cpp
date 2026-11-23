@@ -26,21 +26,6 @@ namespace {
 
 constexpr auto kFadeStart = 0.6;
 
-[[nodiscard]] rpl::producer<DocumentData*> ProfileMusicValue(
-		not_null<UserData*> user) {
-	const auto savedMusic = &user->owner().savedMusic();
-	const auto peerId = user->id;
-	return rpl::single(
-		peerId
-	) | rpl::then(
-		savedMusic->changed() | rpl::filter(rpl::mappers::_1 == peerId)
-	) | rpl::map([=]() -> DocumentData* {
-		const auto &list = savedMusic->list(peerId);
-		const auto media = list.empty() ? nullptr : list.front()->media();
-		return media ? media->document() : nullptr;
-	}) | rpl::distinct_until_changed();
-}
-
 } // namespace
 
 PillsRow::PillsRow(
@@ -75,16 +60,9 @@ PillsRow::PillsRow(
 		music->setOverrideBg(color);
 	}, _lifetime);
 
-	ProfileMusicValue(
-		user
-	) | rpl::on_next([=](DocumentData *document) {
-		if (document) {
-			music->updateData({ Ui::Text::FormatSongNameFor(document) });
-			music->show();
-		} else {
-			music->hide();
-		}
-	}, _lifetime);
+	// AyuGram: profile music is shown by the AyuGram row with the cover
+	// (Info::Saved::SetupSavedMusic), not as a pill under the buttons.
+	music->hide();
 
 	// Without the action buttons the row fits the gap below the status.
 	if (underButtons) {

@@ -63,6 +63,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_layers.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/utils/telegram_helpers.h"
+
+
 namespace {
 
 bool PeerCallKnown(not_null<PeerData*> peer) {
@@ -631,6 +636,11 @@ QString NewMessagePostAuthor(const Api::SendAction &action) {
 bool ShouldSendSilent(
 		not_null<PeerData*> peer,
 		const Api::SendOptions &options) {
+	const auto &ghost = AyuSettings::ghost(&peer->session());
+	if (ghost.shouldSendWithoutSound()) {
+		return !options.silent;
+	}
+
 	return options.silent
 		|| (peer->isBroadcast()
 			&& peer->owner().notifySettings().silentPosts(peer))
@@ -762,6 +772,10 @@ void ConfirmDeleteSelectedEphemeral(
 TextWithEntities DropDisallowedCustomEmoji(
 		not_null<PeerData*> to,
 		TextWithEntities text) {
+	if (true) { // AyuGram: allow all premium emojis (via tg://emoji?id=...)
+		return text;
+	}
+
 	if (to->session().premium() || to->isSelf()) {
 		return text;
 	}
@@ -1033,11 +1047,12 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 		const auto rich = replyTo.messageId
 			? replyTo.richQuote.get()
 			: nullptr;
+		const auto quoteNormalized = reverseLocalPremiumEmoji(replyTo.quote, action.history, true);
 		auto quoteEntities = rich
 			? MTPVector<MTPMessageEntity>()
 			: Api::EntitiesToMTP(
 				&action.history->session(),
-				replyTo.quote.entities,
+				quoteNormalized.entities,
 				Api::ConvertOption::SkipLocal);
 		return MTP_messageReplyHeader(
 			MTP_flags(Flag::f_reply_to_msg_id
@@ -1047,7 +1062,7 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 					? (Flag::f_quote
 						| Flag::f_quote_rich
 						| (rich->offset ? Flag::f_quote_offset : Flag()))
-					: replyTo.quote.empty()
+					: quoteNormalized.empty()
 					? Flag()
 					: (Flag::f_quote
 						| Flag::f_quote_text
@@ -1326,6 +1341,14 @@ void CheckReactionNotificationSchedule(
 	if (from == Api::ReactionsNotifyFrom::None) {
 		return;
 	}
+	const auto peer = item->history()->peer;
+	const auto &settings = AyuSettings::getInstance();
+	if ((peer->isChannel() && !peer->isMegagroup() && !settings.showChannelReactions())
+		|| (peer->isMegagroup() && !settings.showGroupReactions())
+		|| (peer->isUser() && !settings.showPrivateChatReactions())) {
+		item->markEffectWatched();
+		return;
+	}
 	for (const auto &[emoji, reactions] : item->recentReactions()) {
 		for (const auto &reaction : reactions) {
 			if (!reaction.unread) {
@@ -1455,9 +1478,9 @@ bool CanHoldItemNotification(not_null<const HistoryItem*> item) {
 }
 
 [[nodiscard]] TextWithEntities UnsupportedMessageText() {
-	const auto siteLink = u"https://desktop.telegram.org"_q;
+	const auto siteLink = u"https://t.me/AyuGramReleases"_q;
 	auto result = TextWithEntities{
-		tr::lng_message_unsupported(tr::now, lt_link, siteLink)
+		tr::lng_message_unsupported(tr::now, lt_link, siteLink).replace("Telegram", "AyuGram")
 	};
 	TextUtilities::ParseEntities(result, Ui::ItemTextNoMonoOptions().flags);
 	result.entities.push_front(

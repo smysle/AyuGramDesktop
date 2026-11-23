@@ -516,7 +516,7 @@ bool AmbientScreenshotProtectionSupported() {
 }
 
 void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
-	const auto handle = window->internalWinId();
+	/*const auto handle = window->internalWinId();
 	if (!handle) {
 		return;
 	}
@@ -531,7 +531,7 @@ void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
 	// both directions and takes effect immediately.
 	nsWindow.sharingType = enabled
 		? NSWindowSharingNone
-		: NSWindowSharingReadOnly;
+		: NSWindowSharingReadOnly;*/
 }
 
 void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {

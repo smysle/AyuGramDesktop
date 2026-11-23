@@ -10,7 +10,7 @@ init_non_host_target(Telegram)
 add_subdirectory(lib_rpl)
 add_subdirectory(lib_crl)
 add_subdirectory(lib_base)
-add_subdirectory(lib_ui)
+include(cmake/ayugram_lib_ui.cmake)
 add_subdirectory(lib_tl)
 add_subdirectory(lib_spellcheck)
 add_subdirectory(lib_storage)
@@ -20,6 +20,10 @@ add_subdirectory(lib_translate)
 add_subdirectory(lib_webrtc)
 add_subdirectory(lib_webview)
 add_subdirectory(codegen)
+
+# AyuGram filters
+add_subdirectory(lib_icu)
+# AyuGram filters
 
 get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
@@ -121,6 +125,159 @@ PRIVATE
     desktop-app::external_openal
     desktop-app::external_wallet_engine
     desktop-app::external_xxhash
+
+    # AyuGram filters
+    ayugram::lib_icu
+)
+
+set(ayugram_files
+        ayu/ayu_worker.cpp
+        ayu/ayu_worker.h
+        ayu/ayu_url_handlers.cpp
+        ayu/ayu_url_handlers.h
+        ayu/ayu_state.cpp
+        ayu/ayu_state.h
+        ayu/ayu_settings.cpp
+        ayu/ayu_settings.h
+        ayu/ayu_lang.cpp
+        ayu/ayu_lang.h
+        ayu/ayu_infra.cpp
+        ayu/ayu_infra.h
+        ayu/utils/ayu_mapper.cpp
+        ayu/utils/ayu_mapper.h
+        ayu/utils/qt_key_modifiers_extended.h
+        ayu/utils/telegram_helpers.cpp
+        ayu/utils/telegram_helpers.h
+        ayu/utils/windows_utils.cpp
+        ayu/utils/windows_utils.h
+        ayu/utils/rc_manager.cpp
+        ayu/utils/rc_manager.h
+        ayu/ui/ayu_logo.cpp
+        ayu/ui/ayu_logo.h
+        ayu/ui/toasts.cpp
+        ayu/ui/toasts.h
+        ayu/ui/ayu_userpic.cpp
+        ayu/ui/ayu_userpic.h
+        ayu/ui/utils/ayu_profile_values.cpp
+        ayu/ui/utils/ayu_profile_values.h
+        ayu/ui/utils/color_cut_quantizer.cpp
+        ayu/ui/utils/color_cut_quantizer.h
+        ayu/ui/utils/color_utils.cpp
+        ayu/ui/utils/color_utils.h
+        ayu/ui/utils/palette.cpp
+        ayu/ui/utils/palette.h
+        ayu/ui/utils/itunes_search.cpp
+        ayu/ui/utils/itunes_search.h
+        ayu/ui/settings/ayu_builder.cpp
+        ayu/ui/settings/ayu_builder.h
+        ayu/ui/settings/settings_appearance.cpp
+        ayu/ui/settings/settings_appearance.h
+        ayu/ui/settings/settings_ayu_utils.cpp
+        ayu/ui/settings/settings_ayu_utils.h
+        ayu/ui/settings/settings_chats.cpp
+        ayu/ui/settings/settings_chats.h
+        ayu/ui/settings/settings_general.cpp
+        ayu/ui/settings/settings_general.h
+        ayu/ui/settings/settings_ayu.cpp
+        ayu/ui/settings/settings_ayu.h
+        ayu/ui/settings/settings_filters.cpp
+        ayu/ui/settings/settings_filters.h
+        ayu/ui/settings/settings_main.cpp
+        ayu/ui/settings/settings_main.h
+        ayu/ui/settings/settings_other.cpp
+        ayu/ui/settings/settings_other.h
+        ayu/ui/settings/filters/settings_filters_list.cpp
+        ayu/ui/settings/filters/settings_filters_list.h
+        ayu/ui/settings/filters/per_dialog_filter.cpp
+        ayu/ui/settings/filters/per_dialog_filter.h
+        ayu/ui/settings/filters/edit_filter.cpp
+        ayu/ui/settings/filters/edit_filter.h
+        ayu/ui/context_menu/context_menu.cpp
+        ayu/ui/context_menu/context_menu.h
+        ayu/ui/context_menu/menu_item_subtext.cpp
+        ayu/ui/context_menu/menu_item_subtext.h
+        ayu/ui/message_history/history_inner.cpp
+        ayu/ui/message_history/history_inner.h
+        ayu/ui/message_history/history_item.cpp
+        ayu/ui/message_history/history_item.h
+        ayu/ui/message_history/history_section.cpp
+        ayu/ui/message_history/history_section.h
+        ayu/ui/boxes/edit_mark_box.cpp
+        ayu/ui/boxes/edit_mark_box.h
+        ayu/ui/boxes/font_selector.cpp
+        ayu/ui/boxes/font_selector.h
+        ayu/ui/boxes/import_filters_box.cpp
+        ayu/ui/boxes/import_filters_box.h
+        ayu/ui/boxes/theme_selector_box.cpp
+        ayu/ui/boxes/theme_selector_box.h
+        ayu/ui/boxes/message_shot_box.cpp
+        ayu/ui/boxes/message_shot_box.h
+        ayu/ui/boxes/donate_qr_box.cpp
+        ayu/ui/boxes/donate_qr_box.h
+        ayu/ui/boxes/donate_info_box.cpp
+        ayu/ui/boxes/donate_info_box.h
+        ayu/ui/boxes/plugin_info_box.cpp
+        ayu/ui/boxes/plugin_info_box.h
+        ayu/ui/components/image_view.cpp
+        ayu/ui/components/image_view.h
+        ayu/ui/components/icon_picker.cpp
+        ayu/ui/components/icon_picker.h
+        ayu/ui/components/avatar_corners_preview.cpp
+        ayu/ui/components/avatar_corners_preview.h
+        ayu/ui/components/message_preview.cpp
+        ayu/ui/components/message_preview.h
+        ayu/ui/components/saved_music.cpp
+        ayu/ui/components/saved_music.h
+        ayu/libs/json.hpp
+        ayu/libs/json_ext.hpp
+        ayu/libs/sqlite/sqlite3.c
+        ayu/libs/sqlite/sqlite3.h
+        ayu/libs/sqlite/sqlite_orm.h
+        ayu/features/streamer_mode/platform/linux/streamer_mode_linux.cpp
+        ayu/features/streamer_mode/platform/linux/streamer_mode_linux.h
+        ayu/features/streamer_mode/platform/mac/streamer_mode_mac.mm
+        ayu/features/streamer_mode/platform/mac/streamer_mode_mac.h
+        ayu/features/streamer_mode/platform/win/streamer_mode_win.cpp
+        ayu/features/streamer_mode/platform/win/streamer_mode_win.h
+        ayu/features/streamer_mode/platform/platform_streamer_mode.h
+        ayu/features/streamer_mode/streamer_mode.cpp
+        ayu/features/streamer_mode/streamer_mode.h
+        ayu/features/message_shot/message_shot.cpp
+        ayu/features/message_shot/message_shot.h
+        ayu/features/message_shot/message_shot_theme_state.cpp
+        ayu/features/message_shot/message_shot_theme_state.h
+        ayu/features/forward/ayu_forward.cpp
+        ayu/features/forward/ayu_forward.h
+        ayu/features/forward/ayu_forward_rich.cpp
+        ayu/features/forward/ayu_forward_rich.h
+        ayu/features/forward/ayu_sync.cpp
+        ayu/features/forward/ayu_sync.h
+        ayu/features/translator/ayu_translator.cpp
+        ayu/features/translator/ayu_translator.h
+        ayu/features/translator/ayu_translate_provider.cpp
+        ayu/features/translator/ayu_translate_provider.h
+        ayu/features/translator/html_parser.cpp
+        ayu/features/translator/html_parser.h
+        ayu/features/translator/implementations/google.cpp
+        ayu/features/translator/implementations/google.h
+        ayu/features/translator/implementations/yandex.cpp
+        ayu/features/translator/implementations/yandex.h
+        ayu/features/translator/implementations/base.cpp
+        ayu/features/translator/implementations/base.h
+        ayu/features/filters/filters_controller.cpp
+        ayu/features/filters/filters_controller.h
+        ayu/features/filters/filters_cache_controller.cpp
+        ayu/features/filters/filters_cache_controller.h
+        ayu/features/filters/filters_utils.cpp
+        ayu/features/filters/filters_utils.h
+        ayu/data/messages_storage.cpp
+        ayu/data/messages_storage.h
+        ayu/data/entities.h
+        ayu/data/ayu_database.cpp
+        ayu/data/ayu_database.h
+
+        info/profile/info_profile_music_button.cpp
+        info/profile/info_profile_music_button.h
 )
 
 if (NOT DESKTOP_APP_DISABLE_SWIFT6)
@@ -131,6 +288,7 @@ target_precompile_headers(Telegram PRIVATE $<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${sr
 nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
+    ${ayugram_files}
 
     api/api_attached_stickers.cpp
     api/api_attached_stickers.h
@@ -1489,6 +1647,7 @@ PRIVATE
     info/reactions_list/info_reactions_list_widget.h
     info/requests_list/info_requests_list_widget.cpp
     info/requests_list/info_requests_list_widget.h
+    info/saved/info_saved_music_common.cpp
     info/saved/info_saved_music_common.h
     info/saved/info_saved_music_provider.cpp
     info/saved/info_saved_music_provider.h
@@ -1581,8 +1740,6 @@ PRIVATE
     intro/intro_qr.h
     intro/intro_signup.cpp
     intro/intro_signup.h
-    intro/intro_start.cpp
-    intro/intro_start.h
     intro/intro_step.cpp
     intro/intro_step.h
     intro/intro_widget.cpp
@@ -2795,6 +2952,8 @@ endif()
 
 nice_target_sources(Telegram ${res_loc}
 PRIVATE
+    qrc/ayu/ayu.qrc
+
     qrc/emoji_1.qrc
     qrc/emoji_2.qrc
     qrc/emoji_3.qrc
@@ -2864,6 +3023,8 @@ if (WIN32)
         )
         # The loader reads the subsystem version as the minimal Windows.
         target_link_options(Telegram PRIVATE /SUBSYSTEM:WINDOWS,6.01)
+        # AyuGram: static Qt Network's DNS lookup imports Dnsapi, absent from the baseline list.
+        target_link_libraries(Telegram PRIVATE Dnsapi)
     endif()
 
     target_link_options(Telegram PRIVATE /PDBPAGESIZE:8192)
@@ -2877,26 +3038,46 @@ elseif (APPLE)
 
     set(icons_path ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Images.xcassets)
     if (CMAKE_GENERATOR STREQUAL Xcode)
-        target_add_resource(Telegram ${icons_path})
+        set(ayugram_icons
+            Default
+            Alt
+            Discord
+            Spotify
+            Extera
+            Nothing
+            Bard
+            Yaplus
+            Win95
+            Chibi
+            Chibi2
+            Extera2
+        )
+
+        foreach (icon ${ayugram_icons})
+            target_add_resource(Telegram "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/AppIcon-${icon}.icon")
+            set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Telegram/AppIcon-${icon}.icon" PROPERTIES
+                    XCODE_EXPLICIT_FILE_TYPE "folder.iconcomposer.icon"
+            )
+        endforeach()
     else()
         set(icon_path ${icons_path}/Icon.iconset)
         find_program(ICONUTIL iconutil)
         find_program(PNG2ICNS png2icns)
         if (ICONUTIL)
             add_custom_command(
-                OUTPUT Icon.icns
+                OUTPUT AppIcon-Default.icns
                 COMMAND ${ICONUTIL}
                 ARGS
                     --convert icns
-                    --output Icon.icns
+                    --output AppIcon-Default.icns
                     ${icon_path}
             )
         elseif (PNG2ICNS)
             add_custom_command(
-                OUTPUT Icon.icns
+                OUTPUT AppIcon-Default.icns
                 COMMAND ${PNG2ICNS}
                 ARGS
-                    Icon.icns
+                    AppIcon-Default.icns
                     ${icon_path}/icon_16x16.png
                     ${icon_path}/icon_32x32.png
                     ${icon_path}/icon_128x128.png
@@ -2905,8 +3086,8 @@ elseif (APPLE)
             )
         endif()
         if (ICONUTIL OR PNG2ICNS)
-            set_source_files_properties(Icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
-            target_add_resource(Telegram Icon.icns)
+            set_source_files_properties(AppIcon-Default.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+            target_add_resource(Telegram AppIcon-Default.icns)
         endif()
     endif()
 
@@ -2982,12 +3163,12 @@ if (build_macstore)
     )
 else()
     if (CMAKE_GENERATOR STREQUAL Xcode)
-        set(bundle_identifier "com.tdesktop.Telegram$<$<CONFIG:Debug>:Debug>")
+        set(bundle_identifier "one.ayugram.AyuGramDesktop$<$<CONFIG:Debug>:Debug>")
     else()
-        set(bundle_identifier "com.tdesktop.Telegram")
+        set(bundle_identifier "one.ayugram.AyuGramDesktop")
     endif()
     set(bundle_entitlements "Telegram.entitlements")
-    set(output_name "Telegram")
+    set(output_name "AyuGram")
 endif()
 
 if (CMAKE_GENERATOR STREQUAL Xcode)
@@ -3004,7 +3185,9 @@ set_target_properties(Telegram PROPERTIES
     XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${bundle_identifier}
     XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${desktop_app_version_string}
     XCODE_ATTRIBUTE_PRODUCT_NAME ${output_name}
-    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME Icon
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon-Default
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES "AppIcon-Alt AppIcon-Discord AppIcon-Spotify AppIcon-Extera AppIcon-Nothing AppIcon-Bard AppIcon-Yaplus AppIcon-Win95 AppIcon-Chibi AppIcon-Chibi2 AppIcon-Extera2"
+    XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS YES
     XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME YES
     XCODE_ATTRIBUTE_COMBINE_HIDPI_IMAGES YES
     XCODE_ATTRIBUTE_COPY_PHASE_STRIP NO
@@ -3038,13 +3221,14 @@ PRIVATE
     TDESKTOP_API_ID=${TDESKTOP_API_ID}
     TDESKTOP_API_HASH=${TDESKTOP_API_HASH}
     G_LOG_DOMAIN="Telegram"
+    U_STATIC_IMPLEMENTATION=1 # AyuGram: do not use __declspec(dllimport) when including icu headers
 )
 
 get_property(is_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if (APPLE
     OR is_multi_config
     OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ""
-    OR NOT "${output_name}" STREQUAL "Telegram")
+    OR NOT "${output_name}" STREQUAL "AyuGram")
     set(output_folder ${CMAKE_BINARY_DIR})
 else()
     set(output_folder ${CMAKE_BINARY_DIR}/bin)
@@ -3270,28 +3454,28 @@ endif()
 
 if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     include(GNUInstallDirs)
-    configure_file("../lib/xdg/org.telegram.desktop.service" "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.service" @ONLY)
-    configure_file("../lib/xdg/org.telegram.desktop.metainfo.xml" "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.metainfo.xml" @ONLY)
-    generate_appstream_changelog(Telegram "${CMAKE_SOURCE_DIR}/changelog.txt" "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.metainfo.xml")
+    configure_file("../lib/xdg/com.ayugram.desktop.service" "${CMAKE_CURRENT_BINARY_DIR}/com.ayugram.desktop.service" @ONLY)
+    configure_file("../lib/xdg/com.ayugram.desktop.metainfo.xml" "${CMAKE_CURRENT_BINARY_DIR}/com.ayugram.desktop.metainfo.xml" @ONLY)
+    generate_appstream_changelog(Telegram "${CMAKE_SOURCE_DIR}/changelog.txt" "${CMAKE_CURRENT_BINARY_DIR}/com.ayugram.desktop.metainfo.xml")
     install(TARGETS Telegram RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}")
-    install(FILES "Resources/art/icon16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon16@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon32@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon48@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon64.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon64@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon128.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon128@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon256@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/art/icon512@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512@2/apps" RENAME "org.telegram.desktop.png")
-    install(FILES "Resources/icons/tray_monochrome.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "org.telegram.desktop-symbolic.svg")
-    install(FILES "Resources/icons/tray_monochrome_attention.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "org.telegram.desktop-attention-symbolic.svg")
-    install(FILES "Resources/icons/tray_monochrome_mute.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "org.telegram.desktop-mute-symbolic.svg")
-    install(FILES "../lib/xdg/org.telegram.desktop.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.service" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/dbus-1/services")
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/org.telegram.desktop.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
+    install(FILES "Resources/art/icon16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon16@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon32@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon48@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon64.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon64@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/64x64@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon128.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon128@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/128x128@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon256.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon256@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon512.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/art/icon512@2x.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/512x512@2/apps" RENAME "com.ayugram.desktop.png")
+    install(FILES "Resources/icons/tray_monochrome.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "com.ayugram.desktop-symbolic.svg")
+    install(FILES "Resources/icons/tray_monochrome_attention.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "com.ayugram.desktop-attention-symbolic.svg")
+    install(FILES "Resources/icons/tray_monochrome_mute.svg" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/symbolic/apps" RENAME "com.ayugram.desktop-mute-symbolic.svg")
+    install(FILES "../lib/xdg/com.ayugram.desktop.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/com.ayugram.desktop.service" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/dbus-1/services")
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/com.ayugram.desktop.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
 endif()

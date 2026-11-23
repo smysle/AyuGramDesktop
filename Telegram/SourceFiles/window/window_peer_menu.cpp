@@ -144,6 +144,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QAction>
 #include <QtWidgets/QApplication>
 
+// AyuGram includes
+#include "ayu/utils/telegram_helpers.h"
+#include "styles/style_ayu_icons.h"
+#include "ayu/ui/context_menu/context_menu.h"
+
+
 namespace Window {
 namespace {
 
@@ -1115,14 +1121,8 @@ void Filler::addTranslate() {
 		|| !Core::App().settings().translateChatEnabled()) {
 		return;
 	}
-	const auto history = _peer->owner().historyLoaded(_peer);
-	if (!history
-		|| !history->translateOfferedFrom()
-		|| history->translatedTo()) {
-		return;
-	}
-	_addAction(tr::lng_context_translate(tr::now), [=] {
-		history->peer->saveTranslationDisabled(false);
+	_addAction(tr::lng_translate_settings_show(tr::now), [=] {
+		_peer->saveTranslationDisabled(false);
 	}, &st::menuIconTranslate);
 }
 
@@ -1958,6 +1958,7 @@ void Filler::fillContextMenuActions() {
 	}
 	addBanFromChannel();
 	addClearHistory();
+	AyuUi::AddDeleteOwnMessagesAction(_peer, _topic, _controller, _addAction);
 	addDeleteChat();
 	addLeaveChat();
 	addDeleteTopic();
@@ -1965,8 +1966,11 @@ void Filler::fillContextMenuActions() {
 
 void Filler::fillHistoryActions() {
 	addToggleMuteSubmenu(true);
+	AyuUi::AddAyuGramActions(_peer, _thread, _controller, _addAction);
 	addCreateTopic();
 	addInfo();
+	AyuUi::AddJumpToBeginningAction(_peer, _thread, _controller, _addAction);
+	AyuUi::AddOpenChannelAction(_peer, _controller, _addAction);
 	addViewAsTopics();
 	addManageChat();
 	addPostStory();
@@ -1984,6 +1988,7 @@ void Filler::fillHistoryActions() {
 	addTranslate();
 	addReport();
 	addClearHistory();
+	AyuUi::AddDeleteOwnMessagesAction(_peer, _topic, _controller, _addAction);
 	addDeleteChat();
 	addLeaveChat();
 }
@@ -2007,6 +2012,8 @@ void Filler::fillProfileActions() {
 	addTopicLink();
 	addManageTopic();
 	addToggleTopicClosed();
+	AyuUi::AddOpenChannelAction(_peer, _controller, _addAction);
+	AyuUi::AddShadowBanAction(_peer, _addAction);
 	addViewDiscussion();
 	addDirectMessages();
 	addExportChat();
@@ -2021,8 +2028,10 @@ void Filler::fillProfileActions() {
 }
 
 void Filler::fillRepliesActions() {
+	AyuUi::AddAyuGramActions(_peer, _thread, _controller, _addAction);
 	if (_topic) {
 		addInfo();
+		AyuUi::AddJumpToBeginningAction(_peer, _thread, _controller, _addAction);
 		addManageTopic();
 	}
 	addBoostChat();
@@ -3316,7 +3325,12 @@ base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 				|| (count && (forum || monoforum || community))) {
 				return;
 			} else if (!count || forum || monoforum || community) {
-				ChooseRecipientBoxController::rowClicked(row);
+				if (base::IsCtrlPressed() || base::IsShiftPressed()) {
+					delegate()->peerListSetRowChecked(row, !row->checked());
+					_selectionChanges.fire({});
+				} else {
+					ChooseRecipientBoxController::rowClicked(row);
+				}
 			} else if (count) {
 				delegate()->peerListSetRowChecked(row, !row->checked());
 				_selectionChanges.fire({});
@@ -4068,6 +4082,7 @@ base::weak_qptr<Ui::BoxContent> ShowSendNowMessagesBox(
 					MTP_int(session->scheduledMessages().lookupId(item)));
 			}
 		}
+		markReadAfterAction(history);
 		session->api().request(MTPmessages_SendScheduledMessages(
 			history->peer->input(),
 			MTP_vector<MTPint>(ids)

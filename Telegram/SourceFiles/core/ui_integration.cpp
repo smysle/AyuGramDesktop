@@ -39,6 +39,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDateTime>
 #include <QtCore/QLocale>
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "ayu/ayu_url_handlers.h"
+#include "ayu/features/streamer_mode/streamer_mode.h"
+
+
 namespace Core {
 namespace {
 
@@ -489,6 +495,15 @@ bool UiIntegration::handleUrlClick(
 		}
 	}
 
+	if (AyuUrlHandlers::IsUnsafeExternalUrl(url)) {
+		LOG(("AyuGram: Blocked opening unsafe url: %1").arg(url));
+		return true;
+	}
+
+	if (AyuUrlHandlers::TryHandleSpotify(url)) {
+		return true;
+	}
+
 	auto parsed = UrlForAutoLogin(url);
 	const auto domain = DomainForAutoLogin(parsed);
 	const auto skip = context.value<ClickHandlerContext>().skipBotAutoLogin;
@@ -519,6 +534,12 @@ bool UiIntegration::copyPreOnClick(const QVariant &context) {
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 	return Core::App().passcodeLockChanges() | rpl::to_empty;
+}
+
+void UiIntegration::preparePopupMenu(not_null<QWidget*> widget) {
+	if (AyuSettings::getInstance().streamerMode()) {
+		AyuFeatures::StreamerMode::hideWidgetWindow(widget);
+	}
 }
 
 const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(

@@ -25,12 +25,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 
+// AyuGram includes
+#include "ayu/ayu_settings.h"
+#include "data/data_premium_limits.h"
+#include "storage/storage_account.h"
+
+
 namespace Data {
 namespace {
 
 constexpr auto kRefreshSuggestedTimeout = 7200 * crl::time(1000);
 constexpr auto kLoadExceptionsAfter = 100;
 constexpr auto kLoadExceptionsPerRequest = 100;
+constexpr auto kStartupFilterPref = "ayu.startupChatFolder";
+
+[[nodiscard]] std::optional<FilterId> ReadStartupId(Storage::Account &local) {
+	auto ok = false;
+	const auto value = local.readPref<QByteArray>(kStartupFilterPref);
+	const auto id = value.toInt(&ok);
+	return (ok && id >= 0) ? std::make_optional(id) : std::nullopt;
+}
 
 [[nodiscard]] crl::time RequestUpdatesEach(not_null<Session*> owner) {
 	const auto appConfig = &owner->session().appConfig();
@@ -392,6 +406,28 @@ ChatFilters::ChatFilters(not_null<Session*> owner)
 , _moreChatsTimer([=] { checkLoadMoreChatsLists(); }) {
 	_list.emplace_back();
 	crl::on_main(&owner->session(), [=] { load(); });
+
+	AyuSettings::getInstance().hideAllChatsFolderChanges()
+	| rpl::on_next([=](bool hide) {
+		if (!_loaded) {
+			return;
+		}
+		if (hide) {
+			if (_list.size() <= 1) {
+				return;
+			}
+			const auto it = ranges::find(_list, FilterId(0), &ChatFilter::id);
+			if (it != end(_list)) {
+				_list.erase(it);
+				_listChanged.fire({});
+			}
+		} else {
+			if (!ranges::contains(_list, FilterId(0), &ChatFilter::id)) {
+				_list.insert(begin(_list), ChatFilter());
+				_listChanged.fire({});
+			}
+		}
+	}, _lifetime);
 }
 
 ChatFilters::~ChatFilters() = default;
@@ -489,10 +525,16 @@ void ChatFilters::requestToggleTags(bool value, Fn<void()> fail) {
 }
 
 void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
+	// AyuGram hideAllChatsFolder
+	const auto &settings = AyuSettings::getInstance();
+
 	auto position = 0;
 	auto changed = false;
 	for (const auto &filter : list) {
 		auto parsed = ChatFilter::FromTL(filter, _owner);
+		if (settings.hideAllChatsFolder() && parsed.id() == 0 && list.size() > 1) {
+			continue;
+		}
 		const auto b = begin(_list) + position;
 		const auto e = end(_list);
 		const auto i = ranges::find(b, e, parsed.id(), &ChatFilter::id);
@@ -514,8 +556,16 @@ void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 		applyRemove(position);
 		changed = true;
 	}
-	if (!ranges::contains(begin(_list), end(_list), 0, &ChatFilter::id)) {
+	if (!settings.hideAllChatsFolder() && !ranges::contains(begin(_list), end(_list), 0, &ChatFilter::id)) {
 		_list.insert(begin(_list), ChatFilter());
+	}
+	auto &local = _owner->session().local();
+	const auto startup = ReadStartupId(local);
+	const auto exists = [&](FilterId id) {
+		return ranges::contains(_list, id, &ChatFilter::id);
+	};
+	if (startup && *startup && !exists(*startup)) {
+		local.clearPref(kStartupFilterPref);
 	}
 	if (changed || !_loaded || _reloading) {
 		_loaded = true;
@@ -525,9 +575,16 @@ void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 }
 
 void ChatFilters::apply(const MTPUpdate &update) {
+	// AyuGram hideAllChatsFolder
+	const auto &settings = AyuSettings::getInstance();
+
 	update.match([&](const MTPDupdateDialogFilter &data) {
 		if (const auto filter = data.vfilter()) {
-			set(ChatFilter::FromTL(*filter, _owner));
+			auto parsed = ChatFilter::FromTL(*filter, _owner);
+			if (settings.hideAllChatsFolder() && parsed.id() == 0) {
+				return;
+			}
+			set(parsed);
 		} else {
 			remove(data.vid().v);
 		}
@@ -703,6 +760,10 @@ void ChatFilters::applyRemove(int position) {
 	// list mid-iteration and crashes (see also PinnedList::setPinned).
 	const auto i = begin(_list) + position;
 	auto filter = std::move(*i);
+	auto &local = _owner->session().local();
+	if (filter.id() && ReadStartupId(local) == filter.id()) {
+		local.clearPref(kStartupFilterPref);
+	}
 	_list.erase(i);
 	applyChange(filter, ChatFilter(filter.id(), {}, {}, {}, {}, {}, {}, {}));
 }
@@ -905,10 +966,56 @@ FilterId ChatFilters::defaultId() const {
 	return lookupId(0);
 }
 
-FilterId ChatFilters::lookupId(int index) const {
-	Expects(index >= 0 && index < _list.size());
+std::span<const ChatFilter> ChatFilters::startupOptions() const {
+	const auto limit = PremiumLimits(
+		&_owner->session()).dialogFiltersCurrent();
+	const auto count = size_t(std::max(0, limit)) + 1;
+	return std::span(_list).first(std::min(_list.size(), count));
+}
 
-	if (_owner->session().user()->isPremium() || !_list.front().id()) {
+std::optional<FilterId> ChatFilters::startupId() const {
+	if (!_loaded) {
+		return std::nullopt;
+	}
+	const auto id = ReadStartupId(_owner->session().local());
+	const auto options = startupOptions();
+	return (id && ranges::contains(options, *id, &ChatFilter::id))
+		? id
+		: std::nullopt;
+}
+
+void ChatFilters::setStartupId(std::optional<FilterId> id) {
+	if (!_loaded) {
+		return;
+	}
+	const auto options = startupOptions();
+	if (id && !ranges::contains(options, *id, &ChatFilter::id)) {
+		return;
+	}
+	auto &local = _owner->session().local();
+	if (id) {
+		local.writePref<QByteArray>(
+			kStartupFilterPref,
+			QByteArray::number(*id));
+	} else {
+		local.clearPref(kStartupFilterPref);
+	}
+	_startupIdChanged.fire({});
+}
+
+rpl::producer<> ChatFilters::startupIdChanges() const {
+	return _startupIdChanged.events();
+}
+
+FilterId ChatFilters::lookupId(int index) const {
+	// Expects(index >= 0 && index < _list.size());
+	if (!(index >= 0 && index < _list.size())) {
+		return FilterId(); // AyuGram: fix crash when using `hideAllChatsFolder`
+	}
+
+	const auto &settings = AyuSettings::getInstance();
+
+	if (_owner->session().user()->isPremium() || !_list.front().id() || settings.hideAllChatsFolder()) {
 		return _list[index].id();
 	}
 	const auto i = ranges::find(_list, FilterId(0), &ChatFilter::id);

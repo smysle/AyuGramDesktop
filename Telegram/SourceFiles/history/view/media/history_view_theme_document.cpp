@@ -52,6 +52,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QDateTime>
 
+// AyuGram includes
+#include "ayu/features/message_shot/message_shot.h"
+
+
 namespace HistoryView {
 namespace {
 
@@ -311,7 +315,8 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 			p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		}
 		if ((radial || (!loaded && !_data->loading()))
-			&& (_parent->context() != Context::MediaEditor)) {
+			&& (_parent->context() != Context::MediaEditor)
+			&& !AyuFeatures::MessageShot::isTakingShot()) {
 			const auto radialOpacity = (radial && loaded && !_data->uploading())
 				? _animation->radial.opacity() :
 				1.;
